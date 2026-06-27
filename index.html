@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>가위바위보 / 묵찌빠</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .game {
+      background: #16213e;
+      border-radius: 24px;
+      padding: 40px;
+      width: 440px;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      position: relative;
+      overflow: hidden;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+      color: #e2e8f0;
+    }
+
+    /* 모드 탭 */
+    .mode-tabs {
+      display: flex;
+      background: #0f3460;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 24px;
+      gap: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #64748b;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .tab-btn.active {
+      background: #3b82f6;
+      color: #fff;
+    }
+
+    /* 대결 화면 */
+    .arena {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      margin-bottom: 16px;
+    }
+
+    .player-box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .player-label {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      letter-spacing: 1px;
+    }
+
+    .choice-display {
+      font-size: 5rem;
+      width: 110px;
+      height: 110px;
+      background: #0f3460;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid transparent;
+      transition: box-shadow 0.3s, border-color 0.3s;
+    }
+
+    .choice-display.attacker-glow {
+      box-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+      border-color: #facc15;
+    }
+
+    .choice-display.shake {
+      animation: shake 0.4s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0) rotate(0deg); }
+      20%       { transform: translateX(-8px) rotate(-5deg); }
+      40%       { transform: translateX(8px) rotate(5deg); }
+      60%       { transform: translateX(-6px) rotate(-3deg); }
+      80%       { transform: translateX(6px) rotate(3deg); }
+    }
+
+    .vs {
+      font-size: 1.4rem;
+      font-weight: bold;
+      color: #475569;
+    }
+
+    .result-text {
+      font-size: 1.3rem;
+      font-weight: bold;
+      min-height: 2rem;
+      margin-bottom: 16px;
+      transition: color 0.3s;
+      color: #94a3b8;
+    }
+
+    .result-text.win  { color: #4ade80; }
+    .result-text.lose { color: #f87171; }
+    .result-text.draw { color: #facc15; }
+
+    /* 섹션 전환 */
+    .section { display: none; }
+    .section.active { display: block; }
+
+    /* 가위바위보 점수판 */
+    .scoreboard {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+      background: #0f3460;
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .score-label { font-size: 0.75rem; color: #94a3b8; letter-spacing: 1px; }
+    .score-value { font-size: 1.8rem; font-weight: bold; }
+    .score-item.win-score  .score-value { color: #4ade80; }
+    .score-item.draw-score .score-value { color: #facc15; }
+    .score-item.lose-score .score-value { color: #f87171; }
+
+    /* 묵찌빠 정보 박스 */
+    .mjp-info {
+      background: #0f3460;
+      border-radius: 12px;
+      padding: 12px 16px;
+      margin-bottom: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .phase-badge {
+      display: inline-block;
+      font-size: 0.8rem;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: #1e4080;
+      color: #93c5fd;
+    }
+
+    .phase-badge.active-mjp {
+      background: rgba(250, 204, 21, 0.15);
+      color: #facc15;
+    }
+
+    .attacker-text {
+      font-size: 0.88rem;
+      color: #94a3b8;
+    }
+
+    .attacker-text strong { color: #facc15; }
+
+    /* 삼세판 도트 */
+    .round-tracker {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .round-side {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .round-side-label { font-size: 0.75rem; color: #94a3b8; }
+
+    .round-dots { display: flex; gap: 8px; }
+
+    .dot {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid #334155;
+      background: transparent;
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .dot.player-win   { background: #4ade80; border-color: #4ade80; }
+    .dot.computer-win { background: #f87171; border-color: #f87171; }
+
+    .round-label-center { font-size: 0.75rem; color: #475569; }
+
+    /* 버튼 */
+    .buttons {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .btn-choice {
+      background: #0f3460;
+      border: 2px solid #1e4080;
+      border-radius: 16px;
+      padding: 16px;
+      font-size: 2.5rem;
+      cursor: pointer;
+      transition: transform 0.15s, background 0.15s, border-color 0.15s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      width: 100px;
+    }
+
+    .btn-choice span { font-size: 0.75rem; color: #94a3b8; }
+
+    .btn-choice:hover {
+      background: #1e4080;
+      border-color: #3b82f6;
+      transform: translateY(-4px);
+    }
+
+    .btn-choice:active { transform: translateY(0); }
+
+    .btn-reset {
+      background: transparent;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      color: #64748b;
+      font-size: 0.8rem;
+      padding: 8px 20px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-reset:hover { color: #e2e8f0; border-color: #64748b; }
+
+    /* 게임 오버 오버레이 */
+    .game-over-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(10, 15, 40, 0.96);
+      border-radius: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 10;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.35s;
+    }
+
+    .game-over-overlay.show { opacity: 1; pointer-events: auto; }
+
+    .game-over-emoji  { font-size: 5rem; }
+    .game-over-title  { font-size: 2.2rem; font-weight: bold; }
+    .game-over-title.win  { color: #4ade80; }
+    .game-over-title.lose { color: #f87171; }
+    .game-over-sub    { font-size: 0.95rem; color: #94a3b8; }
+
+    .btn-restart {
+      margin-top: 8px;
+      background: #3b82f6;
+      border: none;
+      border-radius: 12px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 12px 32px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    .btn-restart:hover { background: #2563eb; transform: translateY(-2px); }
+  </style>
+</head>
+<body>
+  <div class="game">
+    <h1 id="gameTitle">✊ 가위바위보</h1>
+
+    <!-- 모드 탭 -->
+    <div class="mode-tabs">
+      <button class="tab-btn active" id="tab-rps" onclick="switchMode('rps')">가위바위보</button>
+      <button class="tab-btn"        id="tab-mjp" onclick="switchMode('mjp')">묵찌빠</button>
+    </div>
+
+    <!-- 공통 대결 화면 -->
+    <div class="arena">
+      <div class="player-box">
+        <div class="player-label">나</div>
+        <div class="choice-display" id="playerDisplay">❓</div>
+      </div>
+      <div class="vs">VS</div>
+      <div class="player-box">
+        <div class="player-label">컴퓨터</div>
+        <div class="choice-display" id="computerDisplay">❓</div>
+      </div>
+    </div>
+
+    <!-- ── 가위바위보 섹션 ── -->
+    <div id="rpsSection" class="section active">
+      <div class="result-text" id="rpsResult">선택하세요!</div>
+      <div class="scoreboard">
+        <div class="score-item win-score">
+          <span class="score-label">승</span>
+          <span class="score-value" id="winScore">0</span>
+        </div>
+        <div class="score-item draw-score">
+          <span class="score-label">무</span>
+          <span class="score-value" id="drawScore">0</span>
+        </div>
+        <div class="score-item lose-score">
+          <span class="score-label">패</span>
+          <span class="score-value" id="loseScore">0</span>
+        </div>
+      </div>
+      <div class="buttons">
+        <button class="btn-choice" onclick="play('scissors')">✌️<span>가위</span></button>
+        <button class="btn-choice" onclick="play('rock')">✊<span>바위</span></button>
+        <button class="btn-choice" onclick="play('paper')">✋<span>보</span></button>
+      </div>
+      <button class="btn-reset" onclick="rpsReset()">점수 초기화</button>
+    </div>
+
+    <!-- ── 묵찌빠 섹션 ── -->
+    <div id="mjpSection" class="section">
+      <div class="mjp-info">
+        <div><span class="phase-badge" id="phaseBadge">초기전</span></div>
+        <div class="attacker-text" id="attackerText">가위바위보로 공격권을 정합니다</div>
+      </div>
+
+      <div class="result-text" id="mjpResult">선택하세요!</div>
+
+      <!-- 삼세판 (2선승) -->
+      <div class="round-tracker">
+        <div class="round-side">
+          <div class="round-side-label">나</div>
+          <div class="round-dots">
+            <div class="dot" id="p-dot-0"></div>
+            <div class="dot" id="p-dot-1"></div>
+          </div>
+        </div>
+        <div class="round-label-center">삼세판</div>
+        <div class="round-side">
+          <div class="round-side-label">컴퓨터</div>
+          <div class="round-dots">
+            <div class="dot" id="c-dot-0"></div>
+            <div class="dot" id="c-dot-1"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button class="btn-choice" onclick="play('scissors')">✌️<span>가위</span></button>
+        <button class="btn-choice" onclick="play('rock')">✊<span>바위</span></button>
+        <button class="btn-choice" onclick="play('paper')">✋<span>보</span></button>
+      </div>
+      <button class="btn-reset" onclick="mjpReset()">처음부터</button>
+    </div>
+
+    <!-- 묵찌빠 게임 오버 오버레이 -->
+    <div class="game-over-overlay" id="gameOverOverlay">
+      <div class="game-over-emoji" id="gameOverEmoji"></div>
+      <div class="game-over-title" id="gameOverTitle"></div>
+      <div class="game-over-sub"   id="gameOverSub"></div>
+      <button class="btn-restart" onclick="mjpReset()">다시 시작</button>
+    </div>
+  </div>
+
+  <script>
+    const EMOJI   = { scissors: '✌️', rock: '✊', paper: '✋' };
+    const CHOICES = ['scissors', 'rock', 'paper'];
+    let currentMode = 'rps';
+    let busy = false;
+
+    function randChoice() {
+      return CHOICES[Math.floor(Math.random() * 3)];
+    }
+
+    function getResult(player, computer) {
+      if (player === computer) return 'draw';
+      if (
+        (player === 'scissors' && computer === 'paper')    ||
+        (player === 'rock'     && computer === 'scissors') ||
+        (player === 'paper'    && computer === 'rock')
+      ) return 'win';
+      return 'lose';
+    }
+
+    function animateAndResolve(playerChoice, callback) {
+      const pEl = document.getElementById('playerDisplay');
+      const cEl = document.getElementById('computerDisplay');
+      const comp = randChoice();
+
+      pEl.textContent = '❓';
+      cEl.textContent = '❓';
+      pEl.classList.add('shake');
+      cEl.classList.add('shake');
+
+      setTimeout(() => {
+        pEl.textContent = EMOJI[playerChoice];
+        cEl.textContent = EMOJI[comp];
+        pEl.classList.remove('shake');
+        cEl.classList.remove('shake');
+        callback(playerChoice, comp);
+      }, 400);
+    }
+
+    // ── 모드 전환 ──────────────────────────────────────────────
+    function switchMode(mode) {
+      currentMode = mode;
+      document.getElementById('rpsSection').classList.toggle('active', mode === 'rps');
+      document.getElementById('mjpSection').classList.toggle('active', mode === 'mjp');
+      document.getElementById('tab-rps').classList.toggle('active', mode === 'rps');
+      document.getElementById('tab-mjp').classList.toggle('active', mode === 'mjp');
+      document.getElementById('gameTitle').textContent = mode === 'rps' ? '✊ 가위바위보' : '🪨 묵찌빠';
+      document.getElementById('playerDisplay').textContent   = '❓';
+      document.getElementById('computerDisplay').textContent = '❓';
+      clearGlow();
+      busy = false;
+    }
+
+    // ── 공통 진입점 ───────────────────────────────────────────
+    function play(choice) {
+      if (currentMode === 'rps') rpsPlay(choice);
+      else                        mjpPlay(choice);
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  가위바위보
+    // ══════════════════════════════════════════════════════════
+    const rpsScore = { win: 0, draw: 0, lose: 0 };
+
+    function rpsPlay(choice) {
+      if (busy) return;
+      busy = true;
+      const el = document.getElementById('rpsResult');
+      el.className = 'result-text';
+      el.textContent = '...';
+
+      animateAndResolve(choice, (p, c) => {
+        const r = getResult(p, c);
+        rpsScore[r]++;
+        el.textContent = { win: '이겼습니다! 🎉', lose: '졌습니다... 😢', draw: '무승부! 🤝' }[r];
+        el.className   = `result-text ${r}`;
+        document.getElementById('winScore').textContent  = rpsScore.win;
+        document.getElementById('drawScore').textContent = rpsScore.draw;
+        document.getElementById('loseScore').textContent = rpsScore.lose;
+        busy = false;
+      });
+    }
+
+    function rpsReset() {
+      rpsScore.win = rpsScore.draw = rpsScore.lose = 0;
+      ['winScore','drawScore','loseScore'].forEach(id => document.getElementById(id).textContent = 0);
+      document.getElementById('playerDisplay').textContent   = '❓';
+      document.getElementById('computerDisplay').textContent = '❓';
+      const el = document.getElementById('rpsResult');
+      el.textContent = '선택하세요!';
+      el.className   = 'result-text';
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  묵찌빠
+    // ══════════════════════════════════════════════════════════
+    const mjp = {
+      phase: 'rps',    // 'rps'(초기전) | 'mjp'(묵찌빠)
+      attacker: null,  // 'player' | 'computer'
+      playerWins: 0,
+      computerWins: 0,
+      gameOver: false,
+    };
+
+    function mjpPlay(choice) {
+      if (busy || mjp.gameOver) return;
+      busy = true;
+      const el = document.getElementById('mjpResult');
+      el.textContent = '...';
+      el.className   = 'result-text';
+
+      animateAndResolve(choice, (p, c) => {
+        if (mjp.phase === 'rps') onRpsPhase(p, c);
+        else                      onMjpPhase(p, c);
+      });
+    }
+
+    function onRpsPhase(p, c) {
+      const r  = getResult(p, c);
+      const el = document.getElementById('mjpResult');
+
+      if (r === 'draw') {
+        el.textContent = '비겼습니다! 다시 선택하세요';
+        el.className   = 'result-text draw';
+        busy = false;
+        return;
+      }
+
+      mjp.attacker = r === 'win' ? 'player' : 'computer';
+      mjp.phase    = 'mjp';
+      renderMjpInfo();
+      busy = false;
+    }
+
+    function onMjpPhase(p, c) {
+      const el = document.getElementById('mjpResult');
+
+      if (p === c) {
+        // 같은 패 → 공격자 라운드 승
+        if (mjp.attacker === 'player') {
+          mjp.playerWins++;
+          el.textContent = '묵찌빠! 라운드 승리 🎉';
+          el.className   = 'result-text win';
+        } else {
+          mjp.computerWins++;
+          el.textContent = '묵찌빠! 라운드 패배 😢';
+          el.className   = 'result-text lose';
+        }
+        renderDots();
+
+        if (mjp.playerWins >= 2 || mjp.computerWins >= 2) {
+          busy = false;
+          setTimeout(showGameOver, 700);
+          return;
+        }
+
+        // 다음 라운드: 초기전으로 리셋
+        mjp.phase    = 'rps';
+        mjp.attacker = null;
+        clearGlow();
+        setTimeout(renderMjpInfo, 900);
+      } else {
+        // 다른 패 → 공격권 이동
+        mjp.attacker = getResult(p, c) === 'win' ? 'player' : 'computer';
+        renderMjpInfo();
+      }
+
+      busy = false;
+    }
+
+    function renderMjpInfo() {
+      const badge      = document.getElementById('phaseBadge');
+      const attackerEl = document.getElementById('attackerText');
+      const resultEl   = document.getElementById('mjpResult');
+      clearGlow();
+
+      if (mjp.phase === 'rps') {
+        badge.textContent = '초기전';
+        badge.className   = 'phase-badge';
+        attackerEl.innerHTML  = '가위바위보로 공격권을 정합니다';
+        resultEl.textContent  = '선택하세요!';
+        resultEl.className    = 'result-text';
+      } else {
+        badge.textContent = '묵찌빠!';
+        badge.className   = 'phase-badge active-mjp';
+        const who = mjp.attacker === 'player';
+        attackerEl.innerHTML = `공격권: <strong>${who ? '나' : '컴퓨터'}</strong>에게 있습니다`;
+        resultEl.textContent = who
+          ? '같은 패를 내면 이깁니다!'
+          : '다른 패로 공격권을 빼앗아 오세요!';
+        resultEl.className = 'result-text';
+        document.getElementById(who ? 'playerDisplay' : 'computerDisplay')
+                .classList.add('attacker-glow');
+      }
+    }
+
+    function clearGlow() {
+      document.getElementById('playerDisplay').classList.remove('attacker-glow');
+      document.getElementById('computerDisplay').classList.remove('attacker-glow');
+    }
+
+    function renderDots() {
+      for (let i = 0; i < 2; i++) {
+        document.getElementById(`p-dot-${i}`).className =
+          'dot' + (i < mjp.playerWins   ? ' player-win'   : '');
+        document.getElementById(`c-dot-${i}`).className =
+          'dot' + (i < mjp.computerWins ? ' computer-win' : '');
+      }
+    }
+
+    function showGameOver() {
+      mjp.gameOver = true;
+      const playerWon = mjp.playerWins >= 2;
+      document.getElementById('gameOverEmoji').textContent = playerWon ? '🏆' : '💀';
+      document.getElementById('gameOverTitle').textContent = playerWon ? '최종 승리!' : '게임 오버';
+      document.getElementById('gameOverTitle').className   = `game-over-title ${playerWon ? 'win' : 'lose'}`;
+      document.getElementById('gameOverSub').textContent   = playerWon
+        ? '2판을 이겨 묵찌빠 챔피언!'
+        : '2판을 져 게임이 끝났습니다.';
+      document.getElementById('gameOverOverlay').classList.add('show');
+    }
+
+    function mjpReset() {
+      Object.assign(mjp, { phase: 'rps', attacker: null, playerWins: 0, computerWins: 0, gameOver: false });
+      busy = false;
+      document.getElementById('gameOverOverlay').classList.remove('show');
+      document.getElementById('playerDisplay').textContent   = '❓';
+      document.getElementById('computerDisplay').textContent = '❓';
+      clearGlow();
+      renderDots();
+      renderMjpInfo();
+    }
+  </script>
+</body>
+</html>
